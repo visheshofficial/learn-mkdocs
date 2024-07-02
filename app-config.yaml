@@ -1,0 +1,181 @@
+app:
+  title: TowerBridge
+  baseUrl: "https://${APP_DOMAIN}"
+
+organization:
+  name: Vodafone
+
+backend:
+  baseUrl: "https://${BACKEND_DOMAIN}"
+  listen: ":${BACKEND_PORT}"
+  auth:
+    externalAccess: []
+    keys:
+      - secret: ${BACKEND_SECRET}
+  cors:
+    origin: "https://${APP_DOMAIN}"
+    methods: [GET, HEAD, PATCH, POST, PUT, DELETE]
+    credentials: true
+
+  csp:
+    connect-src: ["'self'", 'http:', 'https:']
+    img-src:
+      # "'self'" and 'data' are from the backstage default but must be set since img-src is overriden
+      - "'self'"
+      - 'data:'
+      # Allow your Jira instance for @roadiehq/backstage-plugin-jira
+      - 'https://jira.tools.aws.vodafone.com'
+  database:
+    client: better-sqlite3
+    connection: ':memory:'
+
+integrations:
+  gitlab:
+    - host: gitlab-ucc.tools.aws.vodafone.com
+      token: ${GITLAB_UCC_TOKEN}
+      apiBaseUrl: https://gitlab-ucc.tools.aws.vodafone.com/api/v4
+    - host: gitlabce.tools.aws.vodafone.com
+      token: ${GITLAB_CE_TOKEN}
+      apiBaseUrl: https://gitlabce.tools.aws.vodafone.com/api/v4
+  github:
+    - host: github.com
+      token: ${GHE_TOKEN}
+  
+sonarqube:
+  baseUrl: https://sonarqubede.tools.aws.vodafone.com
+  apiKey: ${SONARQUBE_TOKEN}
+
+proxy:
+  endpoints:
+    '/jira/api':
+      target: https://jira.tools.aws.vodafone.com
+      headers:
+        Authorization: Bearer ${JIRA_TOKEN}
+        Accept: 'application/json'
+        Content-Type: 'application/json'
+        X-Atlassian-Token: 'no-check'
+        # This is a workaround since Jira APIs reject browser origin requests. Any dummy string without whitespace works.
+        User-Agent: "AnyRandomString"
+  
+techdocs:
+  builder: 'external' # Alternatives - 'external'
+  generator:
+    runIn: 'docker' # Alternatives - 'local'
+    dockerImage: 'spotify/techdocs'
+    pullImage: true
+    mkdocs:
+      omitTechdocsCorePlugin: false
+      legacyCopyReadmeMdToIndexMd: false
+      defaultPlugins: ['techdocs-core']
+  publisher:
+    type: 'awsS3'
+    awsS3:
+      bucketName: 'vgsl-sandbox-sandbox-useast1-s3.towerbridge-techdocs'
+      region: 'us-east-1'
+      bucketRootPath: '/'
+      sse: 'aws:kms'
+
+permission:
+  enabled: true
+
+costInsights:
+  engineerCost: 200000
+
+auth:
+  environment: development
+  providers:
+    gitlab:
+      development:
+        clientId: ${GITLAB_UCC_OIDC_CLIENT_ID}
+        clientSecret: ${GITLAB_UCC_OIDC_CLIENT_SECRET}
+        audience: ${GITLAB_UCC_OIDC_AUDIENCE}
+        callbackUrl: ${GITLAB_UCC_OIDC_CALLBACK_URL}
+        signIn:
+          resolvers:
+            # typically you would pick one of these
+            - resolver: emailMatchingUserEntityProfileEmail
+            - resolver: emailLocalPartMatchingUserEntityName
+            - resolver: usernameMatchingUserEntityName
+    github:
+      development:
+        clientId: ${GITHUBENT_OIDC_CLIENT_ID}
+        clientSecret: ${GITHUBENT_OIDC_CLIENT_SECRET}
+        signIn:
+          resolvers:
+            - resolver: emailMatchingUserEntityProfileEmail
+            - resolver: emailLocalPartMatchingUserEntityName
+            - resolver: usernameMatchingUserEntityName
+
+catalog:
+  orphanStrategy: delete
+  providers:
+    github:
+      vfg-vbps-ppe:
+        organization: 'VFG-VBPS-PPE'
+        catalogPath: '/catalog-info.yaml'
+        filters:
+          branch: 'master'
+          visibility:
+            - internal
+        validateLocationExist: true
+        schedule:
+          frequency: { minutes: 30 }
+          timeout: { minutes: 3 }
+    gitlab:
+      gitlab-ucc-devops:
+        host: gitlab-ucc.tools.aws.vodafone.com # Identifies one of the hosts set up in the integrations
+        branch: master # Optional. Used to discover on a specific branch
+        fallbackBranch: main # Optional. Fallback to be used if there is no default branch configured at the Gitlab repository. It is only used, if `branch` is undefined. Uses `master` as default
+        skipForkedRepos: false # Optional. If the project is a fork, skip repository
+        group: devops  # Optional. Group and subgroup (if needed) to look for repositories. If not present the whole instance will be scanned
+        entityFilename: catalog-info.yaml # Optional. Defaults to `catalog-info.yaml`
+        # projectPattern: '[\s\S]*' # Optional. Filters found projects based on provided patter. Defaults to `[\s\S]*`, which means to not filter anything
+        schedule: # optional; same options as in TaskScheduleDefinition
+          # supports cron, ISO duration, "human duration" as used in code
+          frequency: { minutes: 1 }
+          # supports ISO duration, "human duration" as used in code
+          timeout: { minutes: 3 }
+      gitlab-ucc-ppe-platform:
+        host: gitlab-ucc.tools.aws.vodafone.com # Identifies one of the hosts set up in the integrations
+        branch: 'dev-vishesh.bhagat-CPA-2031-entity-modelling-sh-infra' # Optional. Used to discover on a specific branch
+        fallbackBranch: master # Optional. Fallback to be used if there is no default branch configured at the Gitlab repository. It is only used, if `branch` is undefined. Uses `master` as default
+        skipForkedRepos: false # Optional. If the project is a fork, skip repository
+        group: ucc-platform/infrastructure # Optional. Group and subgroup (if needed) to look for repositories. If not present the whole instance will be scanned
+        entityFilename: catalog-info.yaml # Optional. Defaults to `catalog-info.yaml`
+        # projectPattern: '[\s\S]*' # Optional. Filters found projects based on provided patter. Defaults to `[\s\S]*`, which means to not filter anything
+        schedule: # optional; same options as in TaskScheduleDefinition
+          # supports cron, ISO duration, "human duration" as used in code
+          frequency: { minutes: 1 }
+          # supports ISO duration, "human duration" as used in code
+          timeout: { minutes: 3 }
+      gitlabce-iot-solution-hub:
+        host: gitlabce.tools.aws.vodafone.com # Identifies one of the hosts set up in the integrations
+        branch: 'feature-towerbridge-entity-modelling' # Optional. Used to discover on a specific branch
+        fallbackBranch: master # Optional. Fallback to be used if there is no default branch configured at the Gitlab repository. It is only used, if `branch` is undefined. Uses `master` as default
+        skipForkedRepos: false # Optional. If the project is a fork, skip repository
+        group: iot-solutionhub # Optional. Group and subgroup (if needed) to look for repositories. If not present the whole instance will be scanned
+        entityFilename: catalog-info.yaml # Optional. Defaults to `catalog-info.yaml`
+        # projectPattern: '[\s\S]*' # Optional. Filters found projects based on provided patter. Defaults to `[\s\S]*`, which means to not filter anything
+        schedule: # optional; same options as in TaskScheduleDefinition
+          # supports cron, ISO duration, "human duration" as used in code
+          frequency: { minutes: 1 }
+          # supports ISO duration, "human duration" as used in code
+          timeout: { minutes: 3 }
+  import:
+    entityFilename: catalog-info.yaml
+    pullRequestBranchName: backstage-integration
+  rules:
+    - allow: [System, Domain, Component, API, Resource, Location, Template]
+  locations:
+  - type: url
+    target: https://github.com/VFG-VBPS-PPE/towerbridge-access-control/blob/master/catalog-info.yaml
+    rules:
+      - allow: [User, Group, System, Domain, Resource, Location]
+  - type: url
+    target: https://gitlab-ucc.tools.aws.vodafone.com/ucc-platform/infrastructure/sandbox-iac-live/-/blob/master/catalog-info.yaml
+    rules:
+      - allow: [User, Group, System, Domain, Resource, Location]
+  - type: url
+    target: https://github.com/VFG-VBPS-PPE/towerbridge-entities/blob/master/catalog-info.yaml
+    rules:
+      - allow: [Resource, Location, Component]
