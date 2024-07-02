@@ -4,14 +4,15 @@ docs_dir: docs
 plugins:
   - techdocs-core
   - search
-  - glightbox:
-      touchNavigation: false
-      loop: false
-      effect: zoom
-      width: 100%
-      height: auto
-      zoomable: true
-      draggable: true
+  - git-authors
+  # - glightbox:
+  #     touchNavigation: false
+  #     loop: false
+  #     effect: zoom
+  #     width: 100%
+  #     height: auto
+  #     zoomable: true
+  #     draggable: true
 
 theme: 
   name: material
